@@ -1,0 +1,16 @@
+
+libcapi is a static library containing common code for interfacing with the
+Coherent Accelerator Processor Interface. Some of this code was adapated from
+libdonard:
+
+https://github.com/sbates130272/libdonard/
+
+
+
+To build, run:
+
+  ./waf
+
+Optionally, you can install it by running:
+
+  ./waf install
