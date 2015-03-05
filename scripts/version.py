@@ -71,7 +71,7 @@ def get_git_version(git="git"):
 
     return version
 
-get_git_version.max_length = 16
+get_git_version.max_length = 24
 
 class VersionHeader(Task):
     color = "PINK"

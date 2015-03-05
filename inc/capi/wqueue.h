@@ -37,6 +37,8 @@ struct wqueue_mmio {
     uint64_t debug;
     uint32_t read_count;
     uint32_t write_count;
+    uint64_t croom;
+    uint64_t reserved[10];
 };
 
 enum {
@@ -67,5 +69,7 @@ struct cxl_afu_h *wqueue_afu(void);
 uint64_t wqueue_xor_sum(void);
 
 double wqueue_calc_duration(struct wqueue_item *it);
+
+void wqueue_set_croom(int croom);
 
 #endif

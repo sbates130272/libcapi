@@ -223,3 +223,8 @@ double wqueue_calc_duration(struct wqueue_item *it)
 
     return ((double)cycles) / CAPI_TIMER_FREQ;
 }
+
+void wqueue_set_croom(int croom)
+{
+    cxl->mmio_write64(afu_h, &mmio->croom, croom);
+}
