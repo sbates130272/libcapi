@@ -55,15 +55,15 @@ entity snooper is
         ha_bwvalid  : in  std_logic;
         ha_bwdata   : in  std_logic_vector(0 to 511);
 
-        --MMIO Interface
-        read       : in  std_logic;
-        read_data  : out std_logic_vector(0 to 63) := (others=>'0');
-        xor_sum    : out std_logic_vector(0 to 63);
-        tag_alert  : out std_logic_vector(0 to 63);
-        tag_stats0 : out std_logic_vector(0 to 63);
-        tag_stats1 : out std_logic_vector(0 to 63);
-        tag_read   : in  std_logic;
-        tag_rdata  : out std_logic_vector(0 to 63) := (others=>'0')        
+        -- Register Interface
+        reg_en       : in  std_logic;
+        reg_addr     : in  unsigned(0 to 5);
+        reg_dw       : in  std_logic;
+        reg_write    : in  std_logic;
+        reg_wdata    : in  std_logic_vector(0 to 63);
+        reg_read     : in  std_logic;
+        reg_rdata    : out std_logic_vector(0 to 63);
+        reg_read_ack : out std_logic
         );
 
 end entity snooper;
@@ -80,6 +80,16 @@ architecture main of snooper is
                                          ha_response'length + 2 + 12 -1);
 
     signal xor_sum_i : std_logic_vector(0 to 63) := (others=>'0');
+
+
+    signal read       : std_logic;
+    signal read_data  : std_logic_vector(0 to 63) := (others=>'0');
+    signal xor_sum    : std_logic_vector(0 to 63);
+    signal tag_alert  : std_logic_vector(0 to 63);
+    signal tag_stats0 : std_logic_vector(0 to 63);
+    signal tag_stats1 : std_logic_vector(0 to 63);
+    signal tag_read   : std_logic;
+    signal tag_rdata  : std_logic_vector(0 to 63) := (others=>'0');
 
 begin
     xor_sum   <= endian_swap(xor_sum_i);
@@ -152,5 +162,33 @@ begin
             read       => read,
             read_valid => read_data(0),
             read_data  => read_data(64-write_data'length to 63));
+
+
+
+    REG_READ_P: process (ha_pclock) is
+    begin
+        if rising_edge(ha_pclock) then
+            reg_read_ack <= '0';
+            reg_rdata    <= (others=>'0');
+            read         <= '0';
+            tag_read     <= '0';
+
+            if reg_en = '1' then
+                reg_read_ack <= reg_read;
+
+                case to_integer(reg_addr(0 to 4)) is
+                    when 0      => reg_rdata <= read_data;
+                                   read      <= '1';
+                    when 1      => reg_rdata <= xor_sum;
+                    when 2      => reg_rdata <= tag_alert;
+                    when 3      => reg_rdata <= tag_stats0;
+                    when 4      => reg_rdata <= tag_stats1;
+                    when 5      => reg_rdata <= tag_rdata;
+                                   tag_read  <= '1';
+                    when others => reg_rdata <= (others=>'0');
+                end case;
+            end if;
+        end if;
+    end process REG_READ_P;
 
 end architecture main;

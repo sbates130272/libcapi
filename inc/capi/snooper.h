@@ -40,7 +40,7 @@ struct snooper_mmio {
     uint32_t tag_min;
     uint32_t tag_max;
     uint64_t tag_data;
-    uint64_t reserved[10];
+    uint64_t reserved[26];
 };
 
 void snooper_init(struct snooper_mmio *mmio);
