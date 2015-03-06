@@ -441,3 +441,9 @@ def load_waf_cache():
     except IOError:
         print(cl.red("Project not configured, please run './waf configure'"))
         sys.exit(-1)
+
+def append_environ(name, value):
+    if name in os.environ:
+        os.environ[name] += os.pathsep + value
+    else:
+        os.environ[name] = value
