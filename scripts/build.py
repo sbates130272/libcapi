@@ -36,14 +36,19 @@ import pty
 import re
 import signal
 import time
+import version
 
 ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 POWER8 = os.path.join(ROOT, "ibm", "systemsim", "run", "pegasus", "power8")
 
-NCVLOG_ARGS = ["-DEFINE", "BUILD_TIMESTAMP=32'd%d" % time.time()]
+ver = version.get_git_version()
+
+NCVLOG_ARGS = ["-DEFINE", "BUILD_TIMESTAMP=32'd%d" % time.time(),
+               "-DEFINE", 'BUILD_VERSION="%s"' % ver]
 NCVHDL_ARGS = []
-NCELAB_ARGS = ["-GPG", "BUILD_TIMESTAMP=>%d" % time.time()]
+NCELAB_ARGS = ["-GPG", "BUILD_TIMESTAMP=>%d" % time.time(),
+               "-GPG", 'BUILD_VERSION=>"%s"' % ver]
 
 orig_dir = "."
 
