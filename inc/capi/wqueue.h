@@ -38,7 +38,8 @@ struct wqueue_mmio {
     uint32_t read_count;
     uint32_t write_count;
     uint64_t croom;
-    uint64_t reserved[10];
+    uint64_t timer;
+    uint64_t reserved[25];
 };
 
 enum {

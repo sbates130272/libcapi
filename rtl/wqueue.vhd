@@ -39,7 +39,10 @@ entity wqueue is
         ha_pclock  : in std_logic;
         reset      : in std_logic;
         start      : in std_logic;
-        timer      : in unsigned(0 to 63);
+        timer      : in unsigned(0 to 63) := (others=>'0');
+
+        wed_base_addr : in unsigned(0 to 63);
+        wqueue_done   : out std_logic := '0';
 
         -- Command Interface
         ah_cvalid  : out std_logic;
@@ -78,17 +81,15 @@ entity wqueue is
         ha_bwdata   : in  std_logic_vector(0 to 511);
         ha_bwpar    : in  std_logic_vector(0 to 7);
 
-        wed_base_addr : in unsigned(0 to 63);
-        wqueue_done   : out std_logic := '0';
-
-        --Registers
-        reg_wq_len        : in unsigned(0 to 15);
-        reg_wq_trigger    : in std_logic;
-        reg_wq_force_stop : in std_logic;
-        reg_wq_debug      : out std_logic_vector(0 to 63);
-        reg_wq_counts     : out std_logic_vector(0 to 63);
-        reg_croom         : in std_logic_vector(0 to 63);
-        reg_croom_set     : in std_logic;
+        -- Register Interface
+        reg_en       : in  std_logic;
+        reg_addr     : in  unsigned(0 to 5);
+        reg_dw       : in  std_logic;
+        reg_write    : in  std_logic;
+        reg_wdata    : in  std_logic_vector(0 to 63);
+        reg_read     : in  std_logic;
+        reg_rdata    : out std_logic_vector(0 to 63);
+        reg_read_ack : out std_logic;
 
         --Processor Interface
         proc_clear   : out std_logic;
@@ -203,6 +204,15 @@ architecture main of wqueue is
     signal clear : std_logic;
 
     signal start_time : unsigned(0 to 63);
+
+    signal reg_wq_len        : unsigned(0 to 15);
+    signal reg_wq_trigger    : std_logic;
+    signal reg_wq_force_stop : std_logic;
+    signal reg_wq_debug      : std_logic_vector(0 to 63);
+    signal reg_wq_counts     : std_logic_vector(0 to 63);
+    signal reg_croom         : unsigned(credits'range);
+    signal reg_croom_set     : std_logic;
+
 begin
     ah_cvalid <= ah_cvalid_i;
     ah_ctag   <= ah_ctag_i;
@@ -481,8 +491,8 @@ begin
                 end if;
 
                 if reg_croom_set='1' then
-                    credits    <= signed(reg_croom(reg_croom'high-credits'length+1 to reg_croom'high));
-                    credit_lim <= signed(reg_croom(reg_croom'high-credits'length+1 to reg_croom'high));
+                    credits    <= signed(reg_croom);
+                    credit_lim <= signed(reg_croom);
                 else
                     credits <= credits + incr - decr;
                 end if;
@@ -731,4 +741,64 @@ begin
             end if;
         end if;
     end process DEBUG_COUNTS;
+
+
+    REG_READ_P: process (ha_pclock) is
+    begin
+        if rising_edge(ha_pclock) then
+            reg_read_ack <= '0';
+            reg_rdata <= (others=>'0');
+
+            if reg_en = '1' then
+                reg_read_ack <= reg_read;
+
+                case to_integer(reg_addr(0 to 4)) is
+                    when 0      => reg_rdata <= std_logic_vector(resize(reg_wq_len, 64));
+                    --   1      => Trigger
+                    --   2      => Stop
+                    when 3      => reg_rdata <= reg_wq_debug;
+                    when 4      => reg_rdata <= reg_wq_counts;
+                    when 5      => reg_rdata <= std_logic_vector(resize(reg_croom, 64));
+                    when 6      => reg_rdata <= std_logic_vector(timer);
+                    when others => reg_rdata <= (others=>'0');
+                end case;
+            end if;
+        end if;
+    end process REG_READ_P;
+
+    REG_WRITE_P: process (ha_pclock) is
+    begin
+        if rising_edge(ha_pclock) then
+            reg_croom_set     <= '0';
+            reg_wq_trigger    <= '0';
+            reg_wq_force_stop <= '0';
+
+            if reg_en = '1' and reg_write = '1' then
+                case to_integer(reg_addr(0 to 4)) is
+                    when  0 =>
+                        if reg_addr(5) = '0' or reg_dw = '1' then
+                            reg_wq_len <= resize(unsigned(reg_wdata), reg_wq_len'length);
+                        end if;
+
+                    when 1 => reg_wq_trigger    <= '1';
+                    when 2 => reg_wq_force_stop <= '1';
+                    when 3 => null;      --Debug
+                    when 4 => null;      --Counts
+                    when 5 =>
+                        reg_croom_set <= '1';
+                        if reg_addr(5) = '0' or reg_dw = '1' then
+                            reg_croom <= resize(unsigned(reg_wdata), reg_croom'length);
+                        end if;
+                    when 6 => null;     --Timer
+
+                    when others => null;
+                end case;
+            end if;
+
+            if reset = '1' then
+                reg_croom <= resize(ha_croom, reg_croom'length);
+            end if;
+        end if;
+    end process REG_WRITE_P;
+
 end architecture main;
