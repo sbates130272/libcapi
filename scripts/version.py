@@ -57,8 +57,11 @@ def get_git_version(git="git"):
                  stderr=open(os.devnull, "w"))
     version = p.communicate()[0].strip()
 
+    if p.wait():
+        return "exported"
+
     status = sp.Popen([git, "status", "--porcelain", "-uno"],
-                      stdout=sp.PIPE).communicate()[0]
+                      stdout=sp.PIPE, stderr=open(os.devnull, "w")).communicate()[0]
 
     max_length = get_git_version.max_length
     if max_length:
