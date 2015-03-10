@@ -71,7 +71,7 @@ entity wqueue is
         ha_brtag    : in  std_logic_vector(0 to 7);
         ha_brtagpar : in  std_logic;
         ha_brad     : in  unsigned(0 to 5);
-        ah_brlat    : out std_logic_vector(0 to 3) := x"2";
+        ah_brlat    : out std_logic_vector(0 to 3) := x"1";
         ah_brdata   : out std_logic_vector(0 to 511) := (others=>'0');
         ah_brpar    : out std_logic_vector(0 to 7) := (others=>'0');
         ha_bwvalid  : in  std_logic;
@@ -160,7 +160,6 @@ architecture main of wqueue is
     signal rq_write     : std_logic;
     signal rq_res_addr  : unsigned(0 to 5);
     signal rq_wr_addr   : unsigned(0 to 5);
-    signal rq_wr_data   : std_logic_vector(0 to 511);
     signal rq_empty     : std_logic;
     signal rq_comp      : std_logic;
     signal rq_comp_addr : unsigned(0 to 5);
@@ -185,9 +184,8 @@ architecture main of wqueue is
 
     signal last_write : std_logic := '0';
 
-    signal ha_brvalid_last  : std_logic;
-    signal ha_brvalid_last2 : std_logic;
-    signal ha_brtag_last    : std_logic_vector(ha_brtag'range);
+    signal ha_brvalid_last : std_logic;
+    signal ha_brtag_last   : std_logic_vector(ha_brtag'range);
 
     signal dirty : std_logic;
 
@@ -547,11 +545,10 @@ begin
                 rpar_qitem(i) := calc_parity(rdata_qitem(i*64 to (i+1)*64-1));
             end loop;
 
-            ha_brvalid_last  <= ha_brvalid;
-            ha_brvalid_last2 <= ha_brvalid_last;
-            ha_brtag_last    <= ha_brtag;
+            ha_brvalid_last <= ha_brvalid;
+            ha_brtag_last   <= ha_brtag;
 
-            if ha_brvalid_last2 = '1' then
+            if ha_brvalid_last = '1' then
                 if ha_brtag_last(0 to 2) = TAG_QUEUE_ITEM then
                     ah_brdata <= rdata_qitem;
                     ah_brpar  <= rpar_qitem;
@@ -615,31 +612,16 @@ begin
             write_addr   => rq_wr_addr,
             complete     => rq_comp,
             comp_addr    => rq_comp_addr,
-            write_data   => rq_wr_data,
+            write_data   => ha_bwdata,
             read         => proc_iready,
             read_valid   => proc_ivalid,
             read_data    => proc_idata);
 
     rq_reserve   <= '1' when ah_cvalid_i = '1' and ah_ctag_i(0 to 2) = TAG_RDATA else '0';
-
-    RQ_REG: process (ha_pclock) is
-    begin
-        if rising_edge(ha_pclock) then
-            rq_wr_addr   <= unsigned(ha_bwtag(3 to 7)) & ha_bwad(5);
-            rq_wr_data   <= ha_bwdata;
-            rq_comp_addr <= unsigned(ha_rtag(3 to 7)) & '0';
-
-            rq_write <= '0';
-            if ha_bwvalid = '1' and ha_bwtag(0 to 2) = TAG_RDATA then
-                rq_write <= '1';
-            end if;
-
-            rq_comp <= '0';
-            if ha_rvalid = '1' and ha_rtag(0 to 2) = TAG_RDATA then
-                rq_comp <= '1';
-            end if;
-        end if;
-    end process RQ_REG;
+    rq_write     <= '1' when ha_bwvalid = '1' and ha_bwtag(0 to 2) = TAG_RDATA else '0';
+    rq_wr_addr   <= unsigned(ha_bwtag(3 to 7)) & ha_bwad(5);
+    rq_comp      <= '1' when ha_rvalid = '1' and ha_rtag(0 to 2) = TAG_RDATA else '0';
+    rq_comp_addr <= unsigned(ha_rtag(3 to 7)) & '0';
 
     WRITE_QUEUE: entity work.write_queue
         generic map (
@@ -658,27 +640,12 @@ begin
             complete   => wq_comp,
             comp_addr  => wq_comp_addr);
 
-    proc_oready  <= not wq_full;
     wq_write     <= proc_ovalid and (proc_odirty or qitem_always_wr);
-
-    WQ_REG: process (ha_pclock) is
-    begin
-        if rising_edge(ha_pclock) then
-            wq_rd_addr   <= unsigned(ha_brtag(3 to 7)) &  ha_brad(5);
-            wq_comp_addr <= unsigned(ha_rtag(3 to 7)) & '0';
-
-            wq_read   <= '0';
-            if ha_brvalid = '1' and ha_brtag(0 to 2) = TAG_WDATA then
-                wq_read      <= '1';
-            end if;
-
-            wq_comp <= '0';
-            if ha_rvalid = '1' and ha_rtag(0 to 2) = TAG_WDATA then
-                wq_comp <= '1';
-            end if;
-        end if;
-    end process WQ_REG;
-
+    wq_read      <= '1' when ha_brvalid = '1' and ha_brtag(0 to 2) = TAG_WDATA else '0';
+    wq_rd_addr   <= unsigned(ha_brtag(3 to 7)) &  ha_brad(5);
+    wq_comp      <= '1' when ha_rvalid = '1' and ha_rtag(0 to 2) = TAG_WDATA else '0';
+    wq_comp_addr <= unsigned(ha_rtag(3 to 7)) & '0';
+    proc_oready  <= not wq_full;
 
     WRITE_ADDR_FIFO : entity work.sync_fifo_fwft
         generic map (
