@@ -66,7 +66,7 @@ static int afu_init(char *cxl_dev)
         goto close_afu;
     }
 
-    if ((cxl->mmio_map(afu_h, CXL_MMIO_FLAGS_AFU_BIG_ENDIAN)) < 0) {
+    if ((cxl->mmio_map(afu_h, CXL_MMIO_BIG_ENDIAN)) < 0) {
         fprintf(stderr, "ERROR: could not map the MMIO memory on  AFU device '%s': %s\n",
                 cxl_dev, strerror(errno));
         goto close_afu;
