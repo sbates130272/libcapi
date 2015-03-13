@@ -54,7 +54,8 @@ def configure(conf):
     conf.check_cc(lib='rt')
 
     if not conf.env.PSLSE_DIR:
-        conf.env.PSLSE_DIR = Options.options.pslse_dir or os.getenv("PSLSE_DIR", "")
+        PSLSE_DIR = Options.options.pslse_dir or os.getenv("PSLSE_DIR", "")
+        conf.env.PSLSE_DIR = conf.path.find_node(PSLSE_DIR).abspath()
 
     if conf.env.PSLSE_DIR:
         conf.env.append_unique("INCLUDES", conf.env.PSLSE_DIR)
@@ -62,23 +63,27 @@ def configure(conf):
     def p(msg=""):
         Logs.pprint('NORMAL', msg)
 
-    incpath = conf.path.find_node("inc").abspath()
+    if not conf.env.PSLSE_DIR:
+        raise conf.errors.ConfigurationError(
+            "PSLSE_DIR is not set, please use the -P option or set PSLSE_DIR "
+            "in the environment")
+
     try:
-        conf.check(header_name="misc/cxl.h", includes=incpath)
+        conf.check(header_name="cxl.h")
     except conf.errors.ConfigurationError:
         p()
-        p("Could not find misc/cxl.h, this is required by the PSLSE code.")
+        p("Could not find cxl.h, this is required by the PSLSE code.")
         p("See: https://github.com/kirkmorrow/pslse/blob/master/README")
-        p("Please obtoin a copy from the latest kernel and place it in")
-        p("your include path.")
+        p("Please obtain a copy from the latest kernel and place it in")
+        p(conf.env.PSLSE_DIR)
         p()
         raise
 
     try:
-        conf.check(header_name="libcxl.h", includes=incpath)
+        conf.check(header_name="libcxl.h")
     except conf.errors.ConfigurationError:
         p()
-        p("Could not find libcxl.h, please obtain it a copy of it from:")
+        p("Could not find libcxl.h, please obtain a copy of it from:")
         p("   https://github.com/kirkmorrow/pslse")
         p("and specify it as the -P option")
         p()
