@@ -447,3 +447,8 @@ def append_environ(name, value):
         os.environ[name] += os.pathsep + value
     else:
         os.environ[name] = value
+
+def gen_pslse_params(**kws):
+    with open("pslse.parms", "w") as f:
+        for k,v in kws.items():
+            print("%s:%s" % (k,v), file=f)
