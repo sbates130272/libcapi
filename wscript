@@ -25,7 +25,7 @@
 ##
 ########################################################################
 
-from waflib import Configure, Options, Logs
+from waflib import Configure, Options, Logs, Utils
 Configure.autoconfig = True
 
 import os
@@ -37,7 +37,7 @@ def options(opt):
         opt.library_group =  opt.add_option_group("Library options")
 
     gr = opt.library_group
-    gr.add_option("-P", "--pslse-dir", action="store",
+    gr.add_option("--libcxl-dir", action="store",
                   help="specify the path to find libcxl.h")
 
 
@@ -53,31 +53,36 @@ def configure(conf):
     conf.check_cc(lib='pthread')
     conf.check_cc(lib='rt')
 
-    if not conf.env.PSLSE_DIR:
-        PSLSE_DIR = Options.options.pslse_dir or os.getenv("PSLSE_DIR", "")
-        conf.env.PSLSE_DIR = conf.path.find_node(PSLSE_DIR).abspath()
+    if not conf.env.LIBCXL_DIR:
+        LIBCXL_DIR = Options.options.libcxl_dir or os.getenv("LIBCXL_DIR", "")
+        if LIBCXL_DIR:
+            conf.env.LIBCXL_DIR = conf.path.find_node(LIBCXL_DIR).abspath()
 
-    if conf.env.PSLSE_DIR:
-        conf.env.append_unique("INCLUDES", conf.env.PSLSE_DIR)
 
     def p(msg=""):
         Logs.pprint('NORMAL', msg)
 
-    if not conf.env.PSLSE_DIR:
+    if conf.env.LIBCXL_DIR:
+        conf.env.append_unique("INCLUDES", conf.env.LIBCXL_DIR)
+        conf.env.append_unique("INCLUDES",
+                               os.path.join(conf.env.LIBCXL_DIR, 'include'))
+    else:
         raise conf.errors.ConfigurationError(
-            "PSLSE_DIR is not set, please use the -P option or set PSLSE_DIR "
-            "in the environment")
+            "LIBCXL_DIR is not set, please use the --libcxl-dir option or "
+            "set LIBCXL_DIR in the environment")
 
     try:
-        conf.check(header_name="cxl.h")
-    except conf.errors.ConfigurationError:
-        p()
-        p("Could not find cxl.h, this is required by the PSLSE code.")
-        p("See: https://github.com/kirkmorrow/pslse/blob/master/README")
-        p("Please obtain a copy from the latest kernel and place it in")
-        p(conf.env.PSLSE_DIR)
-        p()
-        raise
+        conf.start_msg("Checking for misc/cxl.h")
+        devnull = open(os.devnull, "w")
+        proc = Utils.subprocess.Popen(["make", "-C", conf.env.LIBCXL_DIR,
+                                       "include/misc/cxl.h"],
+                                      stdout=devnull, stderr=devnull)
+        proc.wait()
+        conf.end_msg("yes")
+    except Exception:
+        conf.end_msg("no", 'YELLOW')
+        conf.fatal("Failed running make include/misc/cxl.h")
+
 
     try:
         conf.check(header_name="libcxl.h")
@@ -85,7 +90,7 @@ def configure(conf):
         p()
         p("Could not find libcxl.h, please obtain a copy of it from:")
         p("   https://github.com/kirkmorrow/pslse")
-        p("and specify it as the -P option")
+        p("and specify it as the --libcxl-dir option")
         p()
         raise
 
