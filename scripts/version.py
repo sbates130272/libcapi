@@ -53,6 +53,9 @@ def configure(conf):
     conf.env.append_unique("INCLUDES", ".")
 
 def get_git_version(git="git"):
+    if hasattr(get_git_version, "cached"):
+        return get_git_version.cached
+
     p = sp.Popen([git, "describe", "--always"], stdout=sp.PIPE,
                  stderr=open(os.devnull, "w"))
     version = p.communicate()[0].strip()
@@ -71,6 +74,8 @@ def get_git_version(git="git"):
         if max_length:
             version=version[:max_length-1]
         version += "M"
+
+    get_git_version.cached = version
 
     return version
 
