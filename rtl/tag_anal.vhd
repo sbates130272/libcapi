@@ -56,6 +56,8 @@ architecture main of tag_anal is
     signal tag_track_or   : unsigned(0 to 31);
     signal tag_track_cnt1 : unsigned(0 to 31);
     signal tag_track_cnt2 : unsigned(0 to 31);
+    signal tag_track_cnt1_add : unsigned(0 to 7);
+    signal tag_track_cnt2_add : unsigned(0 to 7);
     signal tag_alarm      : std_logic_vector(0 to 2**ah_ctag'high-1);
     signal tag_bad        : std_logic_vector(ah_ctag'range);
     signal tag_count      : unsigned(0 to 31);
@@ -218,6 +220,8 @@ begin
                 act_count      <= (others=>'0');
                 tag_track_cnt1 <= (others=>'0');
                 tag_track_cnt2 <= (others=>'0');
+                tag_track_cnt1_add <= (others=>'0');
+                tag_track_cnt2_add <= (others=>'0');
                 tag_track_or   <= (others=>'0');
                 ha_rtag_d      <= (others=>'0');
                 ha_rvalid_d    <= '0';
@@ -226,8 +230,10 @@ begin
               tag_track_d    <= tag_track;
               ha_rtag_d      <= ha_rtag;
               ha_rvalid_d    <= ha_rvalid;
-              tag_track_cnt1 <= to_unsigned(count(tag_track(0 to tag_track'length/2-1)), tag_track_cnt1'length);
-              tag_track_cnt2 <= to_unsigned(count(tag_track(tag_track'length/2 to tag_track'high)), tag_track_cnt2'length);
+              tag_track_cnt1_add <= to_unsigned(count(tag_track(0 to tag_track'length/2-1)), tag_track_cnt1_add'length);
+              tag_track_cnt2_add <= to_unsigned(count(tag_track(tag_track'length/2 to tag_track'high)), tag_track_cnt2_add'length);
+              tag_track_cnt1 <= X"000000" & tag_track_cnt1_add;
+              tag_track_cnt2 <= X"000000" & tag_track_cnt2_add;
               tag_track_or   <= resize(unsigned( std_logic_vector'( "" & or_reduce(tag_track) ) ),
                                     tag_track_or'length);
               if freeze = '0' then
